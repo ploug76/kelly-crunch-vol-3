@@ -409,7 +409,8 @@ function hintSearch(B0,maxD,maxNodes){const fail=new Map();let nodes=0,done=null
 function flash(s,t){G.toast={s,t:t||2.2}}
 function updateGame(dt){const K=G.kelly;const tugging=!!(G.tg&&G.tg.phase==='tug');G.t+=G.over||tugging?0:dt;if(!G.fighters)G.fighters=new Set();if(!G.drools)G.drools=[];
  K.neckBack=Math.max(0,(K.neckBack||0)-dt*5.5);if(K.muffT>0)K.muffT-=dt;for(let i=G.drools.length-1;i>=0;i--){G.drools[i].t+=dt;if(G.drools[i].t>1.8)G.drools.splice(i,1)}
- const tx=colX(K.col);const a=900*(tx-K.x)-2*Math.sqrt(900)*K.vx*.95;K.vx+=a*dt;K.x+=K.vx*dt;if(Math.abs(tx-K.x)<.3&&Math.abs(K.vx)<5){K.x=tx;K.vx=0}
+ const tx=colX(K.col);for(let rem=dt;rem>1e-6;){const h=Math.min(rem,1/240);rem-=h;const a=900*(tx-K.x)-2*Math.sqrt(900)*K.vx*.95;K.vx+=a*h;K.x+=K.vx*h}/* substepped: one big dt step made the spring blow up on slow frames */
+ if(!isFinite(K.x)||!isFinite(K.vx)||Math.abs(K.x-tx)>Math.max(W,H)){K.x=tx;K.vx=0}if(Math.abs(tx-K.x)<.3&&Math.abs(K.vx)<5){K.x=tx;K.vx=0}
  K.hop=Math.max(0,K.hop-dt*6);K.squash=Math.max(0,K.squash-dt*5);K.mouth=Math.max(G.tg||G.hold?.4:0,K.mouth-dt*4);if(K.stun>0)K.stun-=dt;if(K.emoT>0){K.emoT-=dt;if(K.emoT<=0)K.emo=''}
  K.blinkT-=dt;if(K.blinkT<0)K.blinkT=rand(2,5);
  for(let c=0;c<G.frozen.length;c++)if(G.frozen[c]>0)G.frozen[c]-=dt;
@@ -489,11 +490,11 @@ function drawBG(wi,dim){const k=WORLDS[wi].bg;const im=ART[k];X.setTransform(DPR
  if(dim){X.fillStyle=`rgba(8,10,24,${dim})`;X.fillRect(0,0,W,H)}}
 function updateVis(dt){const Hh=G.hold,I=G.mode!=='puzzle'?pushInterval():99,left=I-G.pushT;
  G.B.forEach((col,c)=>col.forEach((x,r)=>{if(!x)return;let v=V.get(x.id);if(!v)v=newVis(x,colX(c),rowY(r));v.cell=x;if(v.grabbed)return;const tx=colX(c),ty=rowY(r);
-  const k=560,d=2*Math.sqrt(k)*.62;v.vx+=(k*(tx-v.x)-d*v.vx)*dt;v.vy+=(k*(ty-v.y)-d*v.vy)*dt;v.x+=v.vx*dt;v.y+=v.vy*dt;
-  v.svx+=(320*(1-v.sx)-15*v.svx)*dt;v.svy+=(320*(1-v.sy)-15*v.svy)*dt;v.sx+=v.svx*dt;v.sy+=v.svy*dt;
+  const k=560,d=2*Math.sqrt(k)*.62,n=Math.max(1,Math.ceil(dt*240)),h=dt/n;for(let i=0;i<n;i++){v.vx+=(k*(tx-v.x)-d*v.vx)*h;v.vy+=(k*(ty-v.y)-d*v.vy)*h;v.x+=v.vx*h;v.y+=v.vy*h;
+  v.svx+=(320*(1-v.sx)-15*v.svx)*h;v.svy+=(320*(1-v.sy)-15*v.svy)*h;v.sx+=v.svx*h;v.sy+=v.svy*h}if(!isFinite(v.x+v.y+v.sx+v.sy)){v.x=tx;v.y=ty;v.vx=v.vy=0;v.sx=v.sy=1;v.svx=v.svy=0}
   let want=0;if(Hh&&c===G.kelly.col&&r===col.length-1&&KC.compat(x,Hh))want=.75;v.open+=(want-v.open)*Math.min(1,dt*12);
   v.blink-=dt;if(v.blink<0)v.blink=rand(2,6);v.shiver=G.mode!=='puzzle'&&left<1.5?clamp(1-left/1.5,0,1):0}));
- if(G.hold){const v=V.get(G.hold.id);if(v){v.svx+=(320*(1-v.sx)-15*v.svx)*dt;v.svy+=(320*(1-v.sy)-15*v.svy)*dt;v.sx+=v.svx*dt;v.sy+=v.svy*dt}}
+ if(G.hold){const v=V.get(G.hold.id);if(v){const n=Math.max(1,Math.ceil(dt*240)),h=dt/n;for(let i=0;i<n;i++){v.svx+=(320*(1-v.sx)-15*v.svx)*h;v.svy+=(320*(1-v.sy)-15*v.svy)*h;v.sx+=v.svx*h;v.sy+=v.svy*h}}}
  for(const v of V.values()){if(v.eaten==null)continue;v.et+=dt;const e=V.get(v.eaten);if(e){const p=clamp(v.et/.14,0,1);v.x=lerp(v.x,e.x,p);v.y=lerp(v.y,e.y,p);v.sx=v.sy=Math.max(.05,1-p)}if(v.et>.16)v.dead=1}
  for(const [id,v] of V)if(v.dead)V.delete(id);
  cleanT-=dt;if(cleanT<0){cleanT=1;const live=new Set();G.B.forEach(col=>col.forEach(x=>x&&live.add(x.id)));if(G.hold)live.add(G.hold.id);if(G.tg&&G.tg.cell)live.add(G.tg.cell.id);G.flights.forEach(f=>live.add(f.cell.id));for(const [id,v] of V)if(!live.has(id)&&v.eaten==null)V.delete(id)}
@@ -516,7 +517,7 @@ function mouthY(){return kGeo().restMY}
 function headPose(K,stretch){if(K.stun>0||K.emo==='ouch')return 'gh_ouch';const tg=G.tg;
  if(tg&&(tg.phase==='out'||tg.phase==='tug'))return 'gh_chomp';if(tg&&tg.phase==='back')return tg.res==='ok'?'gh_full':'gh_smile';
  if(G.hold)return 'gh_full';if(K.mouth>.5)return 'gh_chomp';if(K.emo==='worried')return 'gh_ouch';return 'gh_smile'}
-function drawNeck(x0,y0,x1,y1,nw,strain){const dx=x1-x0,dy=y1-y0,len=Math.hypot(dx,dy);if(len<2)return;const a=Math.atan2(dy,dx);
+function drawNeck(x0,y0,x1,y1,nw,strain){const dx=x1-x0,dy=y1-y0,len=Math.hypot(dx,dy);if(!(len>=2&&len<4000)||!(nw>2))return;const a=Math.atan2(dy,dx);
  X.save();X.translate(x0,y0);X.rotate(a);const wob=strain?Math.sin(RT*55)*2.2:0;
  // tube
  X.lineJoin='round';X.fillStyle='#f6c42f';X.strokeStyle='#4a2a0e';X.lineWidth=3;
@@ -551,7 +552,7 @@ function drawKelly(){const K=G.kelly,g=kGeo(),x0=K.x,y=g.y,hop=Math.sin(K.hop*Ma
  else{let fy=null;for(const f of G.flights){if(!f.fromK)continue;const v=V.get(f.cell.id);if(v){fy=v.y+radius(f.cell)*.35;hx=v.x}}
   if(fy!=null)mY=Math.min(g.restMY-hop,fy);
   else if(K.neckBack>0){const p=1-K.neckBack;const e=1-Math.pow(1-p,3);const over=Math.sin(p*Math.PI)*g.hh*.08*(1-p);mY=lerp(Math.min(g.restMY,K.neckFromY+g.hh*.1),g.restMY-hop,e)+over;hx=lerp(K.neckFromX,x,e)}}
- ext=g.restMY-hop-mY;
+ ext=g.restMY-hop-mY;K.ext=ext;
  const stretching=ext>g.hh*.15;const pose=K.emo==='cheer'||K.emo==='happy'?'kelly_cheer':K.emo==='worried'&&!G.hold?'kelly_worry':null;
  const sx=1+sq*.1+breathe,sy=1-sq*.08-breathe;
  if(pose&&!stretching&&!tg&&!G.hold&&!(K.stun>0)){drawArt(pose,x,y-hop,g.h*1.08,{sx,sy,ay:.97});return null}
@@ -639,7 +640,7 @@ function drawOverlayText(){
  if(G.ann){const A=G.ann,p=A.t/A.life;const sc=p<.15?ease.back(p/.15):1;const y=LAND?H*.42:GE.top+(GE.dangerY-GE.top)*.42;X.save();X.translate(W/2,y);X.scale(sc,sc);X.globalAlpha=p>.8?1-(p-.8)/.2:1;
   const px=Math.min(LAND?40:38,(LAND?W*.5:W-30)/Math.max(6,A.s.length)*1.7);const g=X.createLinearGradient(0,-px/2,0,px/2);g.addColorStop(0,'#fff6a0');g.addColorStop(1,'#ff9a3c');outlined(A.s,0,0,px,g,'#4a1240',px*.24);X.restore();X.globalAlpha=1}
  if(G.toast){const s=G.toast.s;X.font=FONT(16,800);const tw=Math.min(W-30,X.measureText(s).width+30);const y=GE.dangerY-40;X.fillStyle='rgba(20,10,40,.85)';rr(W/2-tw/2,y-18,tw,36,18);X.fill();X.fillStyle='#fff';X.textAlign='center';X.textBaseline='middle';fitText(s,W/2,y,tw-16,16)}
- if(G.tip&&G.tipT<9&&!G.over){const a=G.tipT<.3?G.tipT/.3:G.tipT>8.4?(9-G.tipT)/.6:1;X.globalAlpha=a;const tw=LAND?GE.colW*G.NC+20:W-24;const tx=LAND?GE.x0+GE.colW*G.NC/2:W/2;const ty=LAND?GE.dangerY-70:(GE.hud.tipY||GE.top)+18+(G.boss?20:0);
+ if(G.tip&&G.tipT<9&&!G.over){const a=G.tipT<.3?G.tipT/.3:G.tipT>8.4?(9-G.tipT)/.6:1;G.tipDim=lerp(G.tipDim==null?1:G.tipDim,(G.kelly.ext||0)>12?.12:1,.3);X.globalAlpha=a*G.tipDim;const tw=LAND?GE.colW*G.NC+20:W-24;const tx=LAND?GE.x0+GE.colW*G.NC/2:W/2;const ty=LAND?GE.dangerY-70:(GE.hud.tipY||GE.top)+18+(G.boss?20:0);
   X.font=FONT(15,800);const lines=wrap(G.tip,tw-24,15);const hh=lines.length*19+14;X.fillStyle='rgba(255,255,255,.94)';rr(tx-tw/2,ty-hh/2,tw,hh,12);X.fill();X.fillStyle='#2a1240';X.textAlign='center';X.textBaseline='middle';lines.forEach((l,i)=>X.fillText(l,tx,ty-hh/2+16+i*19));X.globalAlpha=1}}
 function wrap(s,w,px){X.font=FONT(px,800);const words=s.split(' ');let line='';const out=[];for(const wd of words){const t=(line+' '+wd).trim();if(X.measureText(t).width>w&&line){out.push(line);line=wd}else line=t}out.push(line);return out}
 
