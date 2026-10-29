@@ -1,4 +1,4 @@
-# Kelly Crunch Vol. 3
+# Kelly Krunch: The Great Feast Quest
 
 Kelly is back, now as a little giraffe with a stubby neck that stretches up to grab critters! The Gobble King crashed the Rainbow Feast and carried off every pie, so Kelly sets out across five painted worlds to win it back, one critter chain at a time.
 
