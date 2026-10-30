@@ -106,3 +106,6 @@ body.land .bigstars{font-size:48px}
 @keyframes ld{from{transform:translateX(-100%)}to{transform:translateX(260%)}}
 @media (max-height:500px){.b.big{min-height:50px;font-size:20px}h2{font-size:30px}.goal,.howd,.stxt{font-size:17px}}
 body.land .scr.story .foot,body.land .scr.story .dots{width:100%}
+
+/* Oct 30: keep the Start button clear of Kelly and the King (they hop) */
+body:not(.land) .scr.title .hero{margin-bottom:16px}
